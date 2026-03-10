@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría de Carga - Rombo</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .msg { margin-top: 15px; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Auditoría de Drivers</h2>
+        <label>Número de Viaje:</label>
+        <input type="text" id="idViaje" placeholder="Ej. 10123">
+        
+        <div id="seccionConteo" style="display:none;">
+            <label>Cantidad de paquetes contados:</label>
+            <input type="number" id="cantidadContada" placeholder="0">
+        </div>
+
+        <button id="btnAccion" onclick="procesar()">Continuar</button>
+        <div id="mensaje" class="msg"></div>
+    </div>
+
+    <script>
+        let paso = 1;
+        let intentos = 0;
+        const CANTIDAD_SIMULADA = 10; // Esto luego vendrá de tu Excel
+
+        function procesar() {
+            const id = document.getElementById('idViaje').value;
+            const conteoInput = document.getElementById('cantidadContada');
+            const msg = document.getElementById('mensaje');
+
+            if (paso === 1) {
+                if (id !== "") {
+                    document.getElementById('seccionConteo').style.display = 'block';
+                    document.getElementById('btnAccion').innerText = "Validar Conteo";
+                    paso = 2;
+                }
+            } else {
+                intentos++;
+                const contados = parseInt(conteoInput.value);
+
+                if (contados === CANTIDAD_SIMULADA) {
+                    msg.style.color = "green";
+                    msg.innerText = "✅ Cantidad correcta, solicite salida a ruta.";
+                } else if (intentos < 3) {
+                    msg.style.color = "orange";
+                    msg.innerText = `⚠️ Intento ${intentos}: Verifique nuevamente la cantidad contada.`;
+                } else {
+                    msg.style.color = "red";
+                    msg.innerText = "❌ Error persistente. Solicite los números de paquetes para el supervisor.";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
