@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auditoría de Carga - Rombo</title>
     <style>
-        /* Estilos para que se vea bien en el celular de los drivers */
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: sans-serif; 
             padding: 20px; 
             background-color: #f0f2f5; 
             display: flex; 
@@ -21,16 +20,15 @@
             width: 100%; 
             max-width: 400px; 
         }
-        h2 { text-align: center; color: #1a73e8; margin-bottom: 20px; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; color: #555; }
+        h2 { text-align: center; color: #1a73e8; }
         input { 
             width: 100%; 
             padding: 15px; 
-            margin-bottom: 20px; 
+            margin: 10px 0; 
             border: 2px solid #ddd; 
             border-radius: 10px; 
             box-sizing: border-box; 
-            font-size: 18px; /* Tamaño grande para fácil lectura */
+            font-size: 18px; 
         }
         button { 
             width: 100%; 
@@ -39,147 +37,149 @@
             color: white; 
             border: none; 
             border-radius: 10px; 
-            cursor: pointer; 
             font-size: 18px; 
             font-weight: bold;
-            transition: background 0.3s;
+            cursor: pointer;
         }
-        button:hover { background-color: #1557b0; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
         .info-box {
             background: #e8f0fe;
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
             color: #1967d2;
-            border-left: 5px solid #1a73e8;
+        }
+        .status-carga {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
         }
         .msg { 
             margin-top: 20px; 
             padding: 15px; 
             border-radius: 10px; 
             text-align: center; 
-            font-weight: bold; 
             display: none; 
+            font-weight: bold;
         }
-        .error { background-color: #fdecea; color: #d93025; border: 1px solid #d93025; }
-        .success { background-color: #e6f4ea; color: #1e8e3e; border: 1px solid #1e8e3e; }
-        .warning { background-color: #fef7e0; color: #f9ab00; border: 1px solid #f9ab00; }
+        .error { background: #fdecea; color: #d93025; border: 1px solid #d93025; }
+        .success { background: #e6f4ea; color: #1e8e3e; border: 1px solid #1e8e3e; }
+        .warning { background: #fef7e0; color: #f9ab00; border: 1px solid #f9ab00; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>Auditoría Rombo</h2>
-        
-        <div id="paso1">
-            <label>Número de Ruta:</label>
-            <input type="number" id="idViajeInput" placeholder="Ej: 6949" inputmode="numeric">
-            <button onclick="buscarRuta()">Entrar</button>
-        </div>
-
-        <div id="paso2" style="display:none;">
-            <div id="datosDriver" class="info-box"></div>
-            <label>¿Cuántos paquetes contaste?</label>
-            <input type="number" id="conteoInput" placeholder="0" inputmode="numeric">
-            <button onclick="verificarConteo()" style="background-color: #34a853;">Verificar</button>
-            <button onclick="cancelar()" style="background-color: #9aa0a6; margin-top: 10px;">Regresar</button>
-        </div>
-
-        <div id="mensajeBox" class="msg"></div>
+<div class="card">
+    <h2>Auditoría de Carga</h2>
+    <div id="estado" class="status-carga">⏳ Conectando con base de datos...</div>
+    
+    <div id="paso1">
+        <label>Número de Ruta:</label>
+        <input type="number" id="inputRuta" placeholder="Ej: 6949" inputmode="numeric">
+        <button id="btnIngresar" onclick="ingresarRuta()" disabled>Ingresar</button>
     </div>
 
-    <script>
-        // Tu enlace de Google Sheets publicado como CSV
-        const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRtpb3qw9Qrjics2Q265q7dDVhtrDeSFP-Gx_nULfNj90iOaeg47rTvQvKAK9t7davj-mIEFM3737OF/pub?output=csv";
-        
-        let baseDeDatos = {};
-        let viajeActivo = null;
-        let intentosRealizados = 0;
+    <div id="paso2" style="display:none;">
+        <div id="detalleRuta" class="info-box"></div>
+        <label>¿Cuántos paquetes contaste?</label>
+        <input type="number" id="inputConteo" placeholder="0" inputmode="numeric">
+        <button onclick="verificar()" style="background-color: #34a853;">Verificar Conteo</button>
+    </div>
 
-        // Función para cargar los datos de Sheets
-        async function inicializarApp() {
-            try {
-                const response = await fetch(URL_CSV);
-                const data = await response.text();
-                const filas = data.trim().split(/\r?\n/);
-                
-                // Procesamos cada fila (saltando la primera que son títulos)
-                for (let i = 1; i < filas.length; i++) {
-                    const columnas = filas[i].split(",");
-                    if (columnas.length >= 3) {
-                        const idCompleto = columnas[0].trim(); // Ejemplo: "6949 - 1"
-                        baseDeDatos[idCompleto] = {
-                            conductor: columnas[1] ? columnas[1].trim() : "No asignado",
-                            paquetes: parseInt(columnas[2]) || 0,
-                            muelle: columnas[3] ? columnas[3].trim() : "N/A"
-                        };
-                    }
+    <div id="mensaje" class="msg"></div>
+</div>
+
+<script>
+    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRtpb3qw9Qrjics2Q265q7dDVhtrDeSFP-Gx_nULfNj90iOaeg47rTvQvKAK9t7davj-mIEFM3737OF/pub?output=csv";
+    
+    let datosApp = {};
+    let rutaActual = null;
+    let intentos = 0;
+
+    // Carga los datos de Google Sheets
+    async function cargarBaseDeDatos() {
+        const estadoLabel = document.getElementById('estado');
+        const btn = document.getElementById('btnIngresar');
+
+        try {
+            const res = await fetch(URL_CSV);
+            const texto = await res.text();
+            const filas = texto.trim().split(/\r?\n/);
+            
+            filas.slice(1).forEach(fila => {
+                const columnas = fila.split(",");
+                if(columnas.length >= 3) {
+                    const idFull = columnas[0].trim();
+                    datosApp[idFull] = {
+                        driver: columnas[1].trim(),
+                        cantidad: parseInt(columnas[2]),
+                        muelle: columnas[3] ? columnas[3].trim() : "N/A"
+                    };
                 }
-                console.log("Sistema listo y cargado.");
-            } catch (err) {
-                alert("Error al conectar con la base de datos.");
-            }
+            });
+
+            estadoLabel.innerText = "✅ Sistema listo";
+            btn.disabled = false;
+        } catch (e) {
+            estadoLabel.innerText = "❌ Error de conexión";
         }
+    }
 
-        function mostrarAlerta(texto, tipo) {
-            const box = document.getElementById('mensajeBox');
-            box.innerText = texto;
-            box.className = "msg " + tipo;
-            box.style.display = "block";
+    function ingresarRuta() {
+        const num = document.getElementById('inputRuta').value.trim();
+        const msg = document.getElementById('mensaje');
+        const idEncontrado = Object.keys(datosApp).find(id => id.startsWith(num));
+
+        if (idEncontrado) {
+            rutaActual = datosApp[idEncontrado];
+            intentos = 0; // Reiniciar intentos para esta ruta
+            document.getElementById('paso1').style.display = 'none';
+            document.getElementById('paso2').style.display = 'block';
+            msg.style.display = 'none';
+            
+            document.getElementById('detalleRuta').innerHTML = `
+                <strong>👤 Conductor:</strong> ${rutaActual.driver}<br>
+                <strong>📍 Muelle:</strong> ${rutaActual.muelle}
+            `;
+        } else {
+            msg.innerText = "❌ Ruta no encontrada.";
+            msg.className = "msg error";
+            msg.style.display = "block";
         }
+    }
 
-        function buscarRuta() {
-            const numero = document.getElementById('idViajeInput').value.trim();
-            if (!numero) return;
+    function verificar() {
+        const conteo = parseInt(document.getElementById('inputConteo').value);
+        const msg = document.getElementById('mensaje');
+        intentos++;
 
-            // Buscamos si algún ID en la base de datos empieza con ese número
-            const llaveEncontrada = Object.keys(baseDeDatos).find(key => key.split(" ")[0] === numero);
-
-            if (llaveEncontrada) {
-                viajeActivo = baseDeDatos[llaveEncontrada];
-                intentosRealizados = 0;
-                
-                // Mostrar datos del conductor y muelle
-                document.getElementById('datosDriver').innerHTML = `
-                    <strong>👤 Conductor:</strong> ${viajeActivo.conductor}<br>
-                    <strong>📍 Muelle:</strong> ${viajeActivo.muelle}
-                `;
-                
-                document.getElementById('paso1').style.display = 'none';
-                document.getElementById('paso2').style.display = 'block';
-                document.getElementById('mensajeBox').style.display = 'none';
-            } else {
-                mostrarAlerta("❌ Ruta no encontrada. Revisa el número.", "error");
-            }
-        }
-
-        function verificarConteo() {
-            const cantidadIngresada = parseInt(document.getElementById('conteoInput').value);
-            const cantidadReal = viajeActivo.paquetes;
-            intentosRealizados++;
-
-            if (cantidadIngresada === cantidadReal) {
-                mostrarAlerta("✅ Cantidad correcta. Solicite salida a ruta.", "success");
-                document.getElementById('paso2').style.display = 'none';
-            } else {
-                if (intentosRealizados < 3) {
-                    mostrarAlerta(`⚠️ Intento ${intentosRealizados}: Cantidad incorrecta. Verifique nuevamente.`, "warning");
-                } else {
-                    mostrarAlerta("❌ ERROR PERSISTENTE. Solicite apoyo con algun supervisor.", "error");
-                    document.getElementById('paso2').style.display = 'none';
-                }
-            }
-        }
-
-        function cancelar() {
+        if (conteo === rutaActual.cantidad) {
+            // CASO ÉXITO
+            msg.innerText = "✅ Cantidad correcta. Solicite salida a ruta.";
+            msg.className = "msg success";
+            msg.style.display = "block";
             document.getElementById('paso2').style.display = 'none';
-            document.getElementById('paso1').style.display = 'block';
-            document.getElementById('mensajeBox').style.display = 'none';
-            document.getElementById('conteoInput').value = "";
+        } else {
+            // CASO ERROR
+            if (intentos === 1) {
+                // Primer error: Advertencia
+                msg.innerText = "⚠️ Intento 1: Cantidad incorrecta. Verifique nuevamente.";
+                msg.className = "msg warning";
+                msg.style.display = "block";
+                document.getElementById('inputConteo').value = ""; // Limpiar campo para reintentar
+            } else {
+                // Segundo error: Bloqueo
+                msg.innerText = "❌ ERROR PERSISTENTE. Solicite apoyo con algun supervisor.";
+                msg.className = "msg error";
+                msg.style.display = "block";
+                document.getElementById('paso2').style.display = 'none';
+            }
         }
+    }
 
-        // Arrancar la carga de datos al abrir la página
-        inicializarApp();
-    </script>
+    window.onload = cargarBaseDeDatos;
+</script>
+
 </body>
 </html>
